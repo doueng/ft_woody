@@ -1,1 +1,6 @@
-.o
+*.o
+ress
+vgcore*
+pecker
+woody
+.gdb_history
