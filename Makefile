@@ -3,7 +3,8 @@ NAME = ./pecker
 LIB = ./libft/libft.a
 LIBFT = ./libft
 
-FLAGS = -Werror -Wextra -Wall
+FLAGS = -Werror -Wextra -Wall -g
+
 CC = gcc
 
 SRC = $(wildcard *.c)
@@ -14,7 +15,7 @@ all: $(NAME)
 
 $(NAME): $(SRCO)
 	make -C $(LIBFT)
-	$(CC) $(SRCO) $(LIB) -o $(NAME)
+	$(CC) $(SRCO) $(FLAGS) $(LIB) -o $(NAME)
 
 %.o: %.c
 	$(CC) -c $(FLAGS) $< -o $@
