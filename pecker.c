@@ -100,10 +100,15 @@ void	encrypt_text(Elf64_Ehdr *woody)
 	i = 0;
 	while (i < texthdr->sh_size)
 	{
-		text[i] ^= 0x1337;
+		text[i] ^= 0x13;
 		i++;
 	}
 }
+
+// text		0x0000555555555040
+// eh_frame 0x0000555555556048
+// diff		-4104 (hex 0xffffeff8)
+/* mov rax,0x0000555555555040 */
 
 int main(int argc, char *argv[])
 {
@@ -122,6 +127,7 @@ int main(int argc, char *argv[])
 	eh_frame = get_section(woody, ".eh_frame");
 	start = woody->e_entry;
 	woody->e_entry = eh_frame->sh_offset;
+	/* printf("eh_frame offset %ld\n", eh_frame->sh_offset); */
 	haxor(((uint8_t*)woody) + eh_frame->sh_offset, start - eh_frame->sh_offset);
 	encrypt_text(woody);
 	munmap(woody, st.st_size);
