@@ -26,19 +26,17 @@ void	*create_woody(int src, size_t size)
 void	*get_section(Elf64_Ehdr *hdr, char *section_name)
 {
 	Elf64_Shdr		*shdr;
-	Elf64_Shdr		*strsec;
 	char			*strtab;
 	char			*head;
 	size_t			i;
 
 	head = (char*)hdr;
 	shdr = (Elf64_Shdr*)(head + hdr->e_shoff);
-	strsec = &shdr[hdr->e_shstrndx];
-	strtab = head + strsec->sh_offset;
+	strtab = head + shdr[hdr->e_shstrndx].sh_offset;
 	i = 0;
 	while (i < hdr->e_shnum)
 	{
-		if (ft_strequ((strtab + shdr[i].sh_name), section_name))
+		if (ft_strequ(strtab + shdr[i].sh_name, section_name))
 			return (shdr + i);
 		shdr = (Elf64_Shdr*)(((char*)shdr) + shdr->sh_size);
 		i++;
@@ -54,6 +52,7 @@ void	make_exe(Elf64_Ehdr *hdr)
 	phdr = (Elf64_Phdr*)(((char*)hdr) + hdr->e_phoff);
 	phdr->p_flags = PF_X;
 	i = 0;
+	/* phdr[4].p_flags = PF_R | PF_W | PF_X; */
 	while (i < hdr->e_phnum)
 	{
 		phdr->p_flags = PF_R | PF_W | PF_X;
@@ -62,7 +61,7 @@ void	make_exe(Elf64_Ehdr *hdr)
 	}
 }
 
-void	haxor(uint8_t *eh_frame, uint64_t jmp_to)
+void	haxor(uint8_t *eh_frame, uint32_t jmp_to)
 {
 	int			fd;
 	void		*file;
@@ -83,6 +82,40 @@ void	haxor(uint8_t *eh_frame, uint64_t jmp_to)
 		eh_frame[i] = dump[i];
 		i++;
 	}
+	jmp_to -= (i + 5);
+	printf("jmp_to %x\n", jmp_to);
+	eh_frame[i++] = 0xe9; // relative jmp
+	eh_frame[i++] = (jmp_to >>  0) & 0x00000000000000ff;
+	eh_frame[i++] = (jmp_to >>  8) & 0x00000000000000ff;
+	eh_frame[i++] = (jmp_to >> 16) & 0x00000000000000ff;
+	eh_frame[i++] = (jmp_to >> 24) & 0x00000000000000ff;
+	/* eh_frame[i++] = 0xe9; */
+	/* eh_frame[i++] = 0xca - 5; */
+	/* eh_frame[i++] = 0xef; */
+	/* eh_frame[i++] = 0xff; */
+	/* eh_frame[i++] = 0xff; */
+}
+
+Elf64_Sym	*get_symbol(Elf64_Ehdr *hdr, char *name)
+{
+	Elf64_Shdr	*symhdr;
+	Elf64_Shdr	*strhdr;
+	Elf64_Sym	*symbol;
+	char		*strtab;
+	size_t		i;
+
+	symhdr = get_section(hdr, ".symtab");
+	strhdr = get_section(hdr, ".strtab");
+	strtab = (char*)hdr + strhdr->sh_offset;
+	symbol = (Elf64_Sym*)((char*)hdr + symhdr->sh_offset);
+	i = 0;
+	while (i < symhdr->sh_size / symhdr->sh_entsize)
+	{
+		if (ft_strequ(strtab + symbol[i].st_name, name))
+			return (symbol + i);
+		i++;
+	}
+	return (NULL);
 }
 
 int main(int argc, char *argv[])
@@ -91,7 +124,8 @@ int main(int argc, char *argv[])
 	struct stat	st;
 	Elf64_Ehdr	*woody;
 	Elf64_Shdr	*eh_frame;
-	uint64_t	start;
+	Elf64_Sym	*start_sym;
+	size_t		start;
 
 	if (argc != 2)
 		return (printf("Usage: ./pecker <64-bit binary>"));
@@ -102,9 +136,12 @@ int main(int argc, char *argv[])
 	eh_frame = get_section(woody, ".eh_frame");
 	start = woody->e_entry;
 	woody->e_entry = eh_frame->sh_offset;
-	haxor(((uint8_t*)woody) + eh_frame->sh_offset, start);
+	start_sym = get_symbol(woody, "_start");
+	printf("start (%lx)\n", start);
+	printf("startsym (%lx)\n", start_sym->st_value);
+	printf("eh_frame (%lx)\n", eh_frame->sh_offset);
+	haxor(((uint8_t*)woody) + eh_frame->sh_offset, start_sym->st_value - eh_frame->sh_offset);
 	munmap(woody, st.st_size);
 	close(src);
-	(void)start;
 	return (0);
 }
