@@ -89,35 +89,12 @@ void	haxor(uint8_t *eh_frame, uint32_t jmp_to)
 	eh_frame[i++] = (jmp_to >> 24) & 0x00000000000000ff;
 }
 
-/* Elf64_Sym	*get_symbol(Elf64_Ehdr *hdr, char *name) */
-/* { */
-/* 	Elf64_Shdr	*symhdr; */
-/* 	Elf64_Shdr	*strhdr; */
-/* 	Elf64_Sym	*symbol; */
-/* 	char		*strtab; */
-/* 	size_t		i; */
-
-/* 	symhdr = get_section(hdr, ".symtab"); */
-/* 	strhdr = get_section(hdr, ".strtab"); */
-/* 	strtab = (char*)hdr + strhdr->sh_offset; */
-/* 	symbol = (Elf64_Sym*)((char*)hdr + symhdr->sh_offset); */
-/* 	i = 0; */
-/* 	while (i < symhdr->sh_size / symhdr->sh_entsize) */
-/* 	{ */
-/* 		if (ft_strequ(strtab + symbol[i].st_name, name)) */
-/* 			return (symbol + i); */
-/* 		i++; */
-/* 	} */
-/* 	return (NULL); */
-/* } */
-
 int main(int argc, char *argv[])
 {
 	int			src;
 	struct stat	st;
 	Elf64_Ehdr	*woody;
 	Elf64_Shdr	*eh_frame;
-	/* Elf64_Sym	*start_sym; */
 	size_t		start;
 
 	if (argc != 2)
@@ -129,8 +106,6 @@ int main(int argc, char *argv[])
 	eh_frame = get_section(woody, ".eh_frame");
 	start = woody->e_entry;
 	woody->e_entry = eh_frame->sh_offset;
-	/* start_sym = get_symbol(woody, "_start"); */
-	/* haxor(((uint8_t*)woody) + eh_frame->sh_offset, start_sym->st_value - eh_frame->sh_offset); */
 	haxor(((uint8_t*)woody) + eh_frame->sh_offset, start - eh_frame->sh_offset);
 	munmap(woody, st.st_size);
 	close(src);
