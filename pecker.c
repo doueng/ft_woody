@@ -89,6 +89,22 @@ void	haxor(uint8_t *eh_frame, uint32_t jmp_to)
 	eh_frame[i++] = (jmp_to >> 24) & 0x00000000000000ff;
 }
 
+void	encrypt_text(Elf64_Ehdr *woody)
+{
+	Elf64_Shdr	*texthdr;
+	uint8_t		*text;
+	size_t		i;
+
+	texthdr = get_section(woody, ".text");
+	text = (uint8_t*)woody + texthdr->sh_offset;
+	i = 0;
+	while (i < texthdr->sh_size)
+	{
+		text[i] ^= 0x1337;
+		i++;
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	int			src;
@@ -107,6 +123,7 @@ int main(int argc, char *argv[])
 	start = woody->e_entry;
 	woody->e_entry = eh_frame->sh_offset;
 	haxor(((uint8_t*)woody) + eh_frame->sh_offset, start - eh_frame->sh_offset);
+	encrypt_text(woody);
 	munmap(woody, st.st_size);
 	close(src);
 	return (0);
