@@ -61,7 +61,7 @@ void	make_exe(Elf64_Ehdr *hdr)
 	}
 }
 
-void	haxor(uint8_t *eh_frame, uint32_t jmp_to)
+void	haxor(Elf64_Ehdr *woody, uint8_t *eh_frame, uint32_t jmp_to)
 {
 	int			fd;
 	void		*file;
@@ -69,20 +69,43 @@ void	haxor(uint8_t *eh_frame, uint32_t jmp_to)
 	struct stat	st;
 	uint64_t	i;
 	uint8_t		*dump;
+	uint32_t	rel_text;
+	Elf64_Shdr	*woody_eh_frame;
+	Elf64_Shdr	*woody_text;
+	uint32_t	size;
 
 	fd = open("asm.o", O_RDONLY);
 	fstat(fd, &st);
 	file = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
 	text = get_section(file, ".text");
 	dump = file + text->sh_offset;
+	woody_eh_frame = get_section(woody, ".eh_frame");
+	woody_text = get_section(woody, ".text");
+	rel_text = woody_eh_frame->sh_offset - woody_text->sh_offset;
+	// mov r9,size
+	size = woody_text->sh_size;
+	*eh_frame++ = 0x41;
+	*eh_frame++ = 0xb9;
+	*eh_frame++ = (size >>  0) & 0x00000000000000ff;
+	*eh_frame++ = (size >>  8) & 0x00000000000000ff;
+	*eh_frame++ = (size >> 16) & 0x00000000000000ff;
+	*eh_frame++ = (size >> 24) & 0x00000000000000ff;
+	// mov r8,rel_text
+	*eh_frame++ = 0x41;
+	*eh_frame++ = 0xb8;
+	*eh_frame++ = (rel_text >>  0) & 0x00000000000000ff;
+	*eh_frame++ = (rel_text >>  8) & 0x00000000000000ff;
+	*eh_frame++ = (rel_text >> 16) & 0x00000000000000ff;
+	*eh_frame++ = (rel_text >> 24) & 0x00000000000000ff;
 	i = 0;
 	while (i < text->sh_size)
 	{
 		eh_frame[i] = dump[i];
 		i++;
 	}
-	jmp_to -= (i + 5);
-	eh_frame[i++] = 0xe9; // relative jmp
+	jmp_to -= (i + 17); // 17 == sizeof(2 movs and a jmp)
+	// relative jmp to _start
+	eh_frame[i++] = 0xe9;
 	eh_frame[i++] = (jmp_to >>  0) & 0x00000000000000ff;
 	eh_frame[i++] = (jmp_to >>  8) & 0x00000000000000ff;
 	eh_frame[i++] = (jmp_to >> 16) & 0x00000000000000ff;
@@ -127,8 +150,7 @@ int main(int argc, char *argv[])
 	eh_frame = get_section(woody, ".eh_frame");
 	start = woody->e_entry;
 	woody->e_entry = eh_frame->sh_offset;
-	/* printf("eh_frame offset %ld\n", eh_frame->sh_offset); */
-	haxor(((uint8_t*)woody) + eh_frame->sh_offset, start - eh_frame->sh_offset);
+	haxor(woody, ((uint8_t*)woody) + eh_frame->sh_offset, start - eh_frame->sh_offset);
 	encrypt_text(woody);
 	munmap(woody, st.st_size);
 	close(src);

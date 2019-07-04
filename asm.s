@@ -25,14 +25,14 @@
 	syscall
 
 	xor rax,rax
-	sub r12,4104
-	mov rax,r12
+	sub r12,r8					; r8  == offset to text section
+	mov rax,r12					; r12 == eh_frame start
 	mov rdx,0
 loop:
 	xor byte [rax],0x13
 	add rax,1
 	add	rdx,1
-	cmp rdx,389
+	cmp rdx,r9					; r9 == size
 	jl	loop
 
 	pop rax
