@@ -7,19 +7,19 @@ void	*create_woody(int src, size_t size)
 	char		*woody;
 	size_t		i;
 
-	file = mmap(NULL, size, PROT_READ, MAP_PRIVATE, src, 0);
-	dst = open("woody", O_RDWR|O_CREAT|O_TRUNC, 0744);
-	lseek(dst, size - 1, SEEK_SET);
-	write(dst, "", 1);
-	woody = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, dst, 0);
+	file = XV(mmap(NULL, size, PROT_READ, MAP_PRIVATE, src, 0));
+	dst = X(open("woody", O_RDWR|O_CREAT|O_TRUNC, 0744));
+	X(lseek(dst, size - 1, SEEK_SET));
+	X(write(dst, "", 1));
+	woody = XV(mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_SHARED, dst, 0));
 	i = 0;
 	while (i < size)
 	{
 		woody[i] = file[i];
 		i++;
 	}
-	munmap(file, size);
-	close(dst);
+	X(munmap(file, size));
+	X(close(dst));
 	return (woody);
 }
 
@@ -90,9 +90,9 @@ void	haxor(Elf64_Ehdr *woody, uint8_t *eh_frame, uint32_t jmp_to)
 	Elf64_Shdr	*woody_eh_frame;
 	Elf64_Shdr	*woody_text;
 
-	fd = open("asm.o", O_RDONLY);
-	fstat(fd, &st);
-	asm_file = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	fd = X(open("asm.o", O_RDONLY));
+	X(fstat(fd, &st));
+	asm_file = XV(mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0));
 	text = get_section(asm_file, ".text");
 	dump = asm_file + text->sh_offset;
 	woody_eh_frame = get_section(woody, ".eh_frame");
@@ -109,8 +109,8 @@ void	haxor(Elf64_Ehdr *woody, uint8_t *eh_frame, uint32_t jmp_to)
 	*eh_frame++ = 0xe9;
 	jmp_to -= (text->sh_size + 17); // 17 == sizeof(2 movs and a jmp)
 	eh_frame = write_uint32(eh_frame, jmp_to);
-	munmap(asm_file, st.st_size);
-	close(fd);
+	X(munmap(asm_file, st.st_size));
+	X(close(fd));
 }
 
 void	encrypt_text(Elf64_Ehdr *woody)
@@ -139,8 +139,8 @@ int main(int argc, char *argv[])
 
 	if (argc != 2)
 		return (printf("Usage: ./pecker <64-bit binary>"));
-	src = open(argv[1], O_RDONLY);
-	fstat(src, &st);
+	src = X(open(argv[1], O_RDONLY));
+	X(fstat(src, &st));
 	woody = create_woody(src, st.st_size);
 	make_exe(woody);
 	eh_frame = get_section(woody, ".eh_frame");
@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
 	woody->e_entry = eh_frame->sh_offset;
 	haxor(woody, ((uint8_t*)woody) + eh_frame->sh_offset, start - eh_frame->sh_offset);
 	encrypt_text(woody);
-	munmap(woody, st.st_size);
-	close(src);
+	X(munmap(woody, st.st_size));
+	X(close(src));
 	return (0);
 }
