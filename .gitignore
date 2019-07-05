@@ -4,3 +4,4 @@ vgcore*
 pecker
 woody
 .gdb_history
+compile_commands.json

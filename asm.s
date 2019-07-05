@@ -22,18 +22,18 @@
 	mov rsi, rsp
 	mov rdi, 1
 	mov al, 1
-	syscall						; write ....WOODY....
+	syscall			; write ....WOODY....
 
 	xor rax,rax
-	sub r12,r8					; r8  == offset to text section
-	mov rax,r12					; r12 == eh_frame start
+	sub r12,r8		; r8  == offset to text section
+	mov rax,r12		; r12 == offset to eh_frame
 	mov rdx,0
 loop:
 	xor byte [rax],0x13
 	add rax,1
 	add	rdx,1
-	cmp rdx,r9					; r9 == size
-	jl	loop					; xor encrypt text section
+	cmp rdx,r9		; r9 == size
+	jl	loop		; xor encrypt text section
 
 	pop rax
 	pop rax
