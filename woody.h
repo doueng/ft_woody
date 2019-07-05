@@ -8,4 +8,7 @@
 # include <elf.h>
 # include "./libft/libft.h"
 
+# define R8 0xb8
+# define R9 0xb9
+
 #endif

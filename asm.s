@@ -22,7 +22,7 @@
 	mov rsi, rsp
 	mov rdi, 1
 	mov al, 1
-	syscall
+	syscall						; write ....WOODY....
 
 	xor rax,rax
 	sub r12,r8					; r8  == offset to text section
@@ -33,7 +33,7 @@ loop:
 	add rax,1
 	add	rdx,1
 	cmp rdx,r9					; r9 == size
-	jl	loop
+	jl	loop					; xor encrypt text section
 
 	pop rax
 	pop rax

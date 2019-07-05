@@ -52,6 +52,7 @@ void	make_exe(Elf64_Ehdr *hdr)
 	phdr = (Elf64_Phdr*)(((char*)hdr) + hdr->e_phoff);
 	phdr->p_flags = PF_X;
 	i = 0;
+	// eh_frame
 	/* phdr[4].p_flags = PF_R | PF_W | PF_X; */
 	while (i < hdr->e_phnum)
 	{
@@ -61,10 +62,26 @@ void	make_exe(Elf64_Ehdr *hdr)
 	}
 }
 
+uint8_t	*write_uint32(uint8_t *file, uint32_t n)
+{
+	*file++ = (n >>  0) & 0x00000000000000ff;
+	*file++ = (n >>  8) & 0x00000000000000ff;
+	*file++ = (n >> 16) & 0x00000000000000ff;
+	*file++ = (n >> 24) & 0x00000000000000ff;
+	return (file);
+}
+
+uint8_t	*write_mov(uint8_t *file, uint8_t reg, uint32_t n)
+{
+	*file++ = 0x41;
+	*file++ = reg;
+	return (write_uint32(file, n));
+}
+
 void	haxor(Elf64_Ehdr *woody, uint8_t *eh_frame, uint32_t jmp_to)
 {
 	int			fd;
-	void		*file;
+	void		*asm_file;
 	Elf64_Shdr	*text;
 	struct stat	st;
 	uint64_t	i;
@@ -72,44 +89,28 @@ void	haxor(Elf64_Ehdr *woody, uint8_t *eh_frame, uint32_t jmp_to)
 	uint32_t	rel_text;
 	Elf64_Shdr	*woody_eh_frame;
 	Elf64_Shdr	*woody_text;
-	uint32_t	size;
 
 	fd = open("asm.o", O_RDONLY);
 	fstat(fd, &st);
-	file = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
-	text = get_section(file, ".text");
-	dump = file + text->sh_offset;
+	asm_file = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	text = get_section(asm_file, ".text");
+	dump = asm_file + text->sh_offset;
 	woody_eh_frame = get_section(woody, ".eh_frame");
 	woody_text = get_section(woody, ".text");
-	rel_text = woody_eh_frame->sh_offset - woody_text->sh_offset;
 	// mov r9,size
-	size = woody_text->sh_size;
-	*eh_frame++ = 0x41;
-	*eh_frame++ = 0xb9;
-	*eh_frame++ = (size >>  0) & 0x00000000000000ff;
-	*eh_frame++ = (size >>  8) & 0x00000000000000ff;
-	*eh_frame++ = (size >> 16) & 0x00000000000000ff;
-	*eh_frame++ = (size >> 24) & 0x00000000000000ff;
+	eh_frame = write_mov(eh_frame, R9, woody_text->sh_size);
 	// mov r8,rel_text
-	*eh_frame++ = 0x41;
-	*eh_frame++ = 0xb8;
-	*eh_frame++ = (rel_text >>  0) & 0x00000000000000ff;
-	*eh_frame++ = (rel_text >>  8) & 0x00000000000000ff;
-	*eh_frame++ = (rel_text >> 16) & 0x00000000000000ff;
-	*eh_frame++ = (rel_text >> 24) & 0x00000000000000ff;
+	rel_text = woody_eh_frame->sh_offset - woody_text->sh_offset;
+	eh_frame = write_mov(eh_frame, R8, rel_text);
 	i = 0;
 	while (i < text->sh_size)
-	{
-		eh_frame[i] = dump[i];
-		i++;
-	}
-	jmp_to -= (i + 17); // 17 == sizeof(2 movs and a jmp)
+		*eh_frame++ = dump[i++];
 	// relative jmp to _start
-	eh_frame[i++] = 0xe9;
-	eh_frame[i++] = (jmp_to >>  0) & 0x00000000000000ff;
-	eh_frame[i++] = (jmp_to >>  8) & 0x00000000000000ff;
-	eh_frame[i++] = (jmp_to >> 16) & 0x00000000000000ff;
-	eh_frame[i++] = (jmp_to >> 24) & 0x00000000000000ff;
+	*eh_frame++ = 0xe9;
+	jmp_to -= (text->sh_size + 17); // 17 == sizeof(2 movs and a jmp)
+	eh_frame = write_uint32(eh_frame, jmp_to);
+	munmap(asm_file, st.st_size);
+	close(fd);
 }
 
 void	encrypt_text(Elf64_Ehdr *woody)
@@ -127,11 +128,6 @@ void	encrypt_text(Elf64_Ehdr *woody)
 		i++;
 	}
 }
-
-// text		0x0000555555555040
-// eh_frame 0x0000555555556048
-// diff		-4104 (hex 0xffffeff8)
-/* mov rax,0x0000555555555040 */
 
 int main(int argc, char *argv[])
 {
