@@ -1,5 +1,3 @@
-	push rbp
-	mov rbp,rsp
 	push rax
 	push rdi
 	push rsi
@@ -7,6 +5,9 @@
 	push rcx
 	push r11
 	pushfq
+
+	push rbp
+	mov rbp,rsp
 
 	xor rax,rax
 	push rax
@@ -26,7 +27,7 @@
 
 	xor rax,rax
 	sub r12,r8		; r8  == offset to text section
-	mov rax,r12		; r12 == offset to eh_frame
+	mov rax,r12		; r12 == eh_frame address
 	mov rdx,0
 loop:
 	xor byte [rax],0x13
@@ -35,9 +36,9 @@ loop:
 	cmp rdx,r9		; r9 == size
 	jl	loop		; xor encrypt text section
 
-	pop rax
-	pop rax
-	pop rax
+	mov rsp,rbp
+	pop rbp
+
 	popfq
 	pop r11
 	pop rcx
@@ -45,6 +46,4 @@ loop:
 	pop rsi
 	pop rdi
 	pop rax
-	mov rsp,rbp
-	pop rbp
 
